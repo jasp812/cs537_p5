@@ -9,3 +9,13 @@
 /* Protections on memory mapping */
 #define PROT_READ 0x1
 #define PROT_WRITE 0x2
+
+struct map_mem {
+    void* addr;
+    size_t length;
+    struct file* f;
+    off_t offset;
+    int flags;
+    int fd;
+    int prot;
+};
