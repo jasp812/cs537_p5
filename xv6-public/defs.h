@@ -186,5 +186,10 @@ void            switchkvm(void);
 int             copyout(pde_t*, uint, void*, uint);
 void            clearpteu(pde_t *pgdir, char *uva);
 
+// mmap.c
+void*           mmap(void*, size_t, int, int, int, off_t);
+int             munmap(void*, size_t);
+
+
 // number of elements in fixed-size array
 #define NELEM(x) (sizeof(x)/sizeof((x)[0]))
