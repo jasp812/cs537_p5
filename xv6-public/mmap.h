@@ -5,6 +5,8 @@
 #define MAP_ANON MAP_ANONYMOUS
 #define MAP_FIXED 0x0008
 #define MAP_GROWSUP 0x0010
+#define MAP_FAIL (void*)-1
+#define MAX_MAPS 32
 
 /* Protections on memory mapping */
 #define PROT_READ 0x1
