@@ -112,10 +112,8 @@ found:
   memset(p->context, 0, sizeof *p->context);
   p->context->eip = (uint)forkret;
 
-  sp -= sizeof *p->map;
-  p->map = (struct map_mem*)sp;
-  memset(p->map, 0, sizeof *p->map);
   return p;
+
 }
 
 //PAGEBREAK: 32

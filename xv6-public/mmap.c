@@ -51,6 +51,7 @@ void *mmap(void *addr, size_t length, int prot, int flags, int fd, off_t offset)
         mapped->offset = offset;
         mapped->prot = prot;
         mapped->flags = flags;
+        
         if(fd < 0 || fd >= NOFILE || (mapped->f=myproc()->ofile[fd]) == 0)
             return MAP_FAIL;
         mapped->fd = fd;
@@ -72,20 +73,21 @@ void *mmap(void *addr, size_t length, int prot, int flags, int fd, off_t offset)
 
     }
 
+}
+int munmap(void* addr, size_t length) {
+    struct proc *curproc = myproc();
 
-    int munmap(void* addr, size_t length) {
-        struct proc *curproc = myproc();
+    if(!((uint)addr % PGSIZE)){
+        return MAP_FAIL;
+    }
 
-        if(!((uint)addr % PGSIZE)){
-            return MAP_FAIL;
-        }
-
-        for(int i = 0; i < MAX_MAPS; i++){
-            if(curproc -> map[i] -> addr == addr){
-                curproc -> map[i] -> addr -= length;
-            }
+    for(int i = 0; i < MAX_MAPS; i++){
+        if(curproc -> map[i] -> addr == addr){
+            curproc -> map[i] -> addr -= length;
         }
     }
 
 
+
+    return 0;
 }
