@@ -7,6 +7,7 @@
 #include "x86.h"
 #include "traps.h"
 #include "spinlock.h"
+#include "mmap.h"
 
 // Interrupt descriptor table (shared by all CPUs).
 struct gatedesc idt[256];
@@ -30,6 +31,31 @@ void
 idtinit(void)
 {
   lidt(idt, sizeof(idt));
+}
+
+void
+pgfltpfhpgflthndlrintr() 
+{
+  struct proc *p = myproc();
+  uint fault_addr = rcr2();
+  
+
+  for(int i = 0; i < MAX_MAPS; i++) {
+
+    if(p->map[i] ==  0)
+      continue;
+
+    struct map_mem *maps[32] = p->map;
+    uint maxaddr = PGROUNDUP(((uint)maps[i]->addr) + maps[i]->length); 
+
+    if(fault_addr < maps[i]->addr || fault_addr > maxaddr) {
+      cprintf("Segmentation fault. wahahaha skill issue\n");
+      return MAP_FAIL;
+    }
+
+    
+  }
+
 }
 
 //PAGEBREAK: 41
@@ -77,6 +103,8 @@ trap(struct trapframe *tf)
             cpuid(), tf->cs, tf->eip);
     lapiceoi();
     break;
+  case T_PGFLT:
+
 
   //PAGEBREAK: 13
   default:

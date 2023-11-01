@@ -17,9 +17,7 @@ static struct map_mem *mapped;
 
 void *mmap(void *addr, size_t length, int prot, int flags, int fd, off_t offset) {
     
-    if(!((uint)addr % PGSIZE)){
-            return -1;
-    }
+    
 
     struct proc *curproc = myproc();
     
@@ -35,12 +33,16 @@ void *mmap(void *addr, size_t length, int prot, int flags, int fd, off_t offset)
     
 
     if(fixed_bit == MAP_FIXED) {
+        // Check if address is multiple
+        if(!((uint)addr % PGSIZE)){
+            return MAP_FAIL;
+        }
+
         // Check address bounds
         if(!((uint)addr < KERNBASE && (uint)addr >= MMAPBASE)) {
             // seg fault
             kill(curproc->pid);
-            cprintf("Segmentation fault!\n");
-            return;
+            return MAP_FAIL;
         }
 
 
@@ -71,11 +73,11 @@ void *mmap(void *addr, size_t length, int prot, int flags, int fd, off_t offset)
     }
 
 
-    int munmap(void* addr, size_t length){
+    int munmap(void* addr, size_t length) {
         struct proc *curproc = myproc();
 
         if(!((uint)addr % PGSIZE)){
-            return -1;
+            return MAP_FAIL;
         }
 
         for(int i = 0; i < MAX_MAPS; i++){

@@ -13,7 +13,7 @@
 #define PROT_WRITE 0x2
 
 struct map_mem {
-    void* addr;
+    uint addr;
     size_t length;
     struct file* f;
     off_t offset;
@@ -21,3 +21,6 @@ struct map_mem {
     int fd;
     int prot;
 };
+
+void* mmap(void*, size_t, int, int, int, off_t);
+
