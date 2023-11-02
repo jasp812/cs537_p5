@@ -8,7 +8,7 @@
 #include "elf.h"
 #include "mmap.h"
 
-static struct map_mem *mapped;
+static struct map_mem mapped;
 
 // struct map_mem *mapped allocmmap() {
 //     mapped = kalloc();
@@ -46,22 +46,22 @@ void *mmap(void *addr, size_t length, int prot, int flags, int fd, off_t offset)
         }
 
 
-        mapped->addr = addr;
-        mapped->length = length;
-        mapped->offset = offset;
-        mapped->prot = prot;
-        mapped->flags = flags;
+        mapped.addr = addr;
+        mapped.length = length;
+        mapped.offset = offset;
+        mapped.prot = prot;
+        mapped.flags = flags;
         
-        if(fd < 0 || fd >= NOFILE || (mapped->f=myproc()->ofile[fd]) == 0)
+        if(fd < 0 || fd >= NOFILE || (mapped.f=myproc()->ofile[fd]) == 0)
             return MAP_FAIL;
-        mapped->fd = fd;
+        mapped.fd = fd;
 
         if(curproc->num_mappings == MAX_MAPS){
             cprintf("max number of mappings have been reached\n");    
         }
 
        for(int i = 0; i < MAX_MAPS; i++){
-            if(curproc -> map[i] == 0){
+            if(curproc -> map[i].addr == 0){
                 curproc -> map[i] = mapped;
                 curproc->num_mappings++;
                 break;
@@ -82,8 +82,8 @@ int munmap(void* addr, size_t length) {
     }
 
     for(int i = 0; i < MAX_MAPS; i++){
-        if(curproc -> map[i] -> addr == addr){
-            curproc -> map[i] -> addr -= length;
+        if(curproc -> map[i].addr == addr){
+            curproc -> map[i].addr -= length;
         }
     }
 

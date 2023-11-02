@@ -42,7 +42,7 @@ pgfltpfhpgflthndlrintr()
 
   for(int i = 0; i < MAX_MAPS; i++) {
 
-    if(p->map[i] ==  0)
+    if(p->map[i].addr ==  0)
       continue;
 
     struct map_mem *maps[32] = p->map;
@@ -52,6 +52,9 @@ pgfltpfhpgflthndlrintr()
       cprintf("Segmentation fault. wahahaha skill issue\n");
       return MAP_FAIL;
     }
+
+    pde_t *pte;
+    pte = walkpgdir(p->pgdir, fault_addr, maps[i]->length);
 
     
   }
