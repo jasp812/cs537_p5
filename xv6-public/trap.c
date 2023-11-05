@@ -40,21 +40,70 @@ pgfltpfhpgflthndlrintr()
   uint fault_addr = rcr2();
   
 
-  for(int i = 0; i < MAX_MAPS; i++) {
-
-    if(p->map[i].addr ==  0)
-      continue;
+  for(int i = 0; i < p->num_mappings; i++) {
 
     struct map_mem *maps[32] = p->map;
     uint maxaddr = PGROUNDUP(((uint)maps[i]->addr) + maps[i]->length); 
 
+    // Check whether the virtual address being accessed is within bounds
     if(fault_addr < maps[i]->addr || fault_addr > maxaddr) {
       cprintf("Segmentation fault. wahahaha skill issue\n");
+      p->killed = 1;
       return MAP_FAIL;
     }
 
     pde_t *pte;
-    pte = walkpgdir(p->pgdir, fault_addr, maps[i]->length);
+
+    // pte = walkpgdir(p->pgdir, fault_addr, maps[i]->length);
+
+    // Check that the address of the pte associated with the virtual addresss is valid
+    if(pte = walkpgdir(p->pgdir, fault_addr, maps[i]->length) == 0) {
+      cprintf("Segmentation fault. wahahaha skill issue\n");
+      p->killed = 1;
+      return MAP_FAIL;
+    }
+
+    // Check physical address of the pte
+    if(PTE_ADDR(&pte) == 0) {
+      cprintf("Segmentation fault. wahahaha skill issue\n");
+      p->killed = 1;
+      return MAP_FAIL;
+    }
+
+    // ANON MAPPING
+    if(maps[i]->flags & MAP_ANONYMOUS) {
+      int i;
+      int length = maps[i]->length;
+      uint addr = maps[i]->addr;
+
+      // For each page...
+      for(i = 0; i < length; i += PGSIZE) {
+        char *page = kalloc();
+
+        // Check return value of kalloc()
+        if (!page) {
+          return MAP_FAIL;
+        }
+
+        // Zero out page to prep for mapping
+        memset((void*)page, 0, length);
+
+        int ret = mappages(p->pgdir, (void*)addr, PGSIZE, V2P(page), maps[i]->prot);
+        
+        // Check if mappages failed, if it did: deallocate the kalloc'ed memory and free pointer
+        if(ret != 0) {
+          deallocuvm(p->pgdir, addr - PGSIZE, addr);
+          kfree(page);
+          return MAP_FAIL;
+        }
+      }     
+    } else { // FILE-BACKED MAPPING
+  
+    }
+
+
+
+
 
     
   }

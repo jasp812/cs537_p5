@@ -45,22 +45,26 @@ void *mmap(void *addr, size_t length, int prot, int flags, int fd, off_t offset)
             return MAP_FAIL;
         }
 
-
+        // populate struct to reserve memory
+        // can also think of this as the 'lazy' part of lazy allocation
         mapped.addr = addr;
         mapped.length = length;
         mapped.offset = offset;
         mapped.prot = prot;
         mapped.flags = flags;
         
+        // If there is file descriptor, check its valid
         if(fd < 0 || fd >= NOFILE || (mapped.f=myproc()->ofile[fd]) == 0)
             return MAP_FAIL;
         mapped.fd = fd;
 
+        // Make sure we aren't exceeding max number of mappings
         if(curproc->num_mappings == MAX_MAPS){
             cprintf("max number of mappings have been reached\n");    
         }
 
-       for(int i = 0; i < MAX_MAPS; i++){
+        // Find smallest available index and put the struct at that index
+        for(int i = 0; i < MAX_MAPS; i++){
             if(curproc -> map[i].addr == 0){
                 curproc -> map[i] = mapped;
                 curproc->num_mappings++;

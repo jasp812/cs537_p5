@@ -185,6 +185,8 @@ void            switchuvm(struct proc*);
 void            switchkvm(void);
 int             copyout(pde_t*, uint, void*, uint);
 void            clearpteu(pde_t *pgdir, char *uva);
+pte_t*          walkpgdir(pde_t *, const void *, int);
+int             mappages(pde_t *, void *, uint, uint, int);
 
 // mmap.c
 void*           mmap(void*, size_t, int, int, int, off_t);
