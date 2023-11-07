@@ -447,7 +447,6 @@ sys_pipe(void)
 int
 sys_mmap(void)
 {
-  cprintf("System mmap called\n");
   int addr;
   size_t length;
   int prot;
@@ -480,19 +479,12 @@ sys_mmap(void)
     return -1;
   }
 
-  // if(argfd(4, &fd, &f) < 0) {
-  //   cprintf("Failed to get file pointer\n");
-  //   return -1;
-  // }
 
   if(argint(5, (int*)&offset) < 0) {
     cprintf("Failed to get offset arg\n");
     return -1;
   }
 
-  
-
-  cprintf("Calling mmap\n");
   return (int)mmap((void*)addr, length, prot, flags, fd, offset);
   
 }
@@ -500,7 +492,6 @@ sys_mmap(void)
 int
 sys_munmap(void)
 {
-  cprintf("System munmap called\n");
   int addr;
   size_t length;
 
@@ -514,7 +505,5 @@ sys_munmap(void)
     return -1;
   }
 
-  cprintf("Going into munmap\n");
-  cprintf("Addr being passed in: %x\n", addr);
   return munmap((void*)addr, length);
 }

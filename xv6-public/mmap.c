@@ -14,10 +14,6 @@
 
 static struct map_mem mapped;
 
-// struct map_mem *mapped allocmmap() {
-//     mapped = kalloc();
-//     return mapp
-// }
 
 void *mmap(void *addr, size_t length, int prot, int flags, int fd, off_t offset) {
     
@@ -25,20 +21,6 @@ void *mmap(void *addr, size_t length, int prot, int flags, int fd, off_t offset)
 
     struct proc *curproc = myproc();
     uint retaddr = 0;
-    
-    // int private_bit = flags & MAP_PRIVATE;
-    // int shared_bit = flags & MAP_SHARED;
-    // int anon_bit = flags & MAP_ANONYMOUS;
-
-    // int fixed_bit = flags & MAP_FIXED;
-    // int growsup_bit = flags & MAP_GROWSUP;
-
-    // int read_bit = prot & PROT_READ;
-    // int write_bit = prot & PROT_WRITE;
-
-    // cprintf("Value of flags is %d\n", flags);
-    // cprintf("Value of MAP_FIXED is %x\n", MAP_FIXED);
-    // cprintf("Value of fixed_bit is %x\n", flags & MAP_FIXED);
 
     // FIXED MAPPING
     if(flags & MAP_FIXED) {
@@ -120,15 +102,11 @@ void *mmap(void *addr, size_t length, int prot, int flags, int fd, off_t offset)
             if(!curproc -> map[i].mapped){
                 curproc -> map[i] = mapped;
                 curproc->num_mappings++;
-                cprintf("mapping placed at index %d\n", i);
                 break;
             }
        }
-       cprintf("Array updated\n");
 
 
-    
-    cprintf("Returning %x\n", retaddr);
     return (void*)retaddr;
 
 }

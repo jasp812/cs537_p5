@@ -57,17 +57,13 @@ pgfltpfhpgflthndlrintr()
   struct proc *p = myproc();
   uint fault_addr = rcr2();
   
-  cprintf("Entering for loop\n");
   for(int i = 0; i < 32; i++) {
 
     if(!p->map[i].mapped) {
       continue;
     }
     char *page = kalloc();
-    // struct map_mem maps[32] = p->map;
     uint maxaddr = PGROUNDUP(((uint)p->map[i].addr) + p->map[i].length); 
-
-    cprintf("fault_addr: %p, process mapp addr: %p, maxaddr: %p\n", fault_addr, p->map[i].addr, maxaddr);
 
     // Check whether the virtual address being accessed is within bounds
     if(fault_addr < p->map[i].addr || fault_addr >= maxaddr) {
@@ -87,7 +83,6 @@ pgfltpfhpgflthndlrintr()
 
     pde_t *pte;
 
-    // pte = walkpgdir(p->pgdir, fault_addr, maps[i]->length);
 
     // Check that the address of the pte associated with the virtual addresss is valid
     if((pte = walkpgdir(p->pgdir, (void*)fault_addr, p->map[i].length)) == 0) {
@@ -105,11 +100,7 @@ pgfltpfhpgflthndlrintr()
       return MAP_FAIL;
     }
 
-    cprintf("Checking flags...\n");
-
-    // check for sharing 
-    cprintf("Child shared flag: %x\n", p -> map[i].flags & MAP_SHARED);
-    cprintf("Parent shared flag: %x\n", p -> parent -> map[i].flags & MAP_SHARED);
+    // Check for Sharing
     if(p -> map[i].flags & MAP_SHARED && p -> parent->map[i].flags & MAP_SHARED){
       uint start = p -> map[i].addr; 
       uint stop = start + p -> map[i].length; 
@@ -117,46 +108,38 @@ pgfltpfhpgflthndlrintr()
       if(fault_addr >= start && fault_addr < stop){
 
         if(mappages(p->pgdir, (void *)fault_addr, PGSIZE, V2P(page), PTE_W | PTE_U) < 0){
-          panic("mappages");
+          panic("mappages has failed");
         }
 
       }else {
-          cprintf("2\n");
           pte_t *pte = walkpgdir(p->parent->pgdir, (void *)fault_addr, 0);
           uint pa = PTE_ADDR(*pte);
           if(mappages(p->pgdir, (void*)fault_addr, PGSIZE, pa, PTE_W | PTE_U) < 0){
-          panic("mappages");
+          panic("mappages has failed");
         }
       }
     } else{
-      cprintf("3\n");
+      // Create separate physical page with same contents as parent page
       pte_t *pte = walkpgdir(p->parent->pgdir, (void *)fault_addr, 0);
       uint pa = PTE_ADDR(*pte);
       char *parent_pg = (char *)P2V(pa);
       memmove(page, parent_pg, PGSIZE);
       if(mappages(p->pgdir, (void *)fault_addr, PGSIZE, V2P(page), PTE_W | PTE_U) < 0){
-          panic("mappages");
+          panic("mappages has failed");
         }
 
     }
 
-      // FILE-BACKED MAPPING
+      // Check for file-backed mapping
       if(!(p->map[i].flags & MAP_ANON)) { 
-        cprintf("FILE BACKED MAPPING\n");
         fileread(p->map[i].f, (char*)(fault_addr), PGSIZE);
-      }
-           
-    
-
-
-
-
+      }       
     
     }
+
+    return MAP_SUCCESS;
   }
 
-  return MAP_SUCCESS;
-}
 //PAGEBREAK: 41
 void
 trap(struct trapframe *tf)
