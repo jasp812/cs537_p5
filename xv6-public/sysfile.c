@@ -480,10 +480,17 @@ sys_mmap(void)
     return -1;
   }
 
+  // if(argfd(4, &fd, &f) < 0) {
+  //   cprintf("Failed to get file pointer\n");
+  //   return -1;
+  // }
+
   if(argint(5, (int*)&offset) < 0) {
     cprintf("Failed to get offset arg\n");
     return -1;
   }
+
+  
 
   cprintf("Calling mmap\n");
   return (int)mmap((void*)addr, length, prot, flags, fd, offset);
