@@ -82,7 +82,7 @@ pgfltpfhpgflthndlrintr()
       uint start = p -> map[i].addr; 
       uint stop = start + p -> map[i].length; 
 
-      if(fault_addr >= start && fault_addr < stop){
+      if(fault_addr < start && fault_addr >= stop){
 
         if(mappages(p->pgdir, (void *)fault_addr, PGSIZE, V2P(fault_addr), PTE_W | PTE_U) < 0){
           panic("mappages");
@@ -133,13 +133,11 @@ pgfltpfhpgflthndlrintr()
            
     
 
-
-
-
     
     }
   }
 
+  return MAP_SUCCESS;
 }
 //PAGEBREAK: 41
 void
