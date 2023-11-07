@@ -47,7 +47,6 @@ void *mmap(void *addr, size_t length, int prot, int flags, int fd, off_t offset)
         if(!((uint)addr < KERNBASE && (uint)addr >= MMAPBASE)) {
             cprintf("Address is not within bounds\n");
             // seg fault
-            kill(curproc->pid);
             return MAP_FAIL;
         }
 
