@@ -87,10 +87,45 @@ int munmap(void* addr, size_t length) {
 
     for(int i = 0; i < MAX_MAPS; i++){
         if(curproc -> map[i].addr == addr){
-            curproc -> map[i].addr -= length;
+            
+            uint starting_addr = curproc -> map[i].addr;
+
+            uint anon = curproc->map[i].flags & MAP_ANON;
+            uint shared = curproc->map[i].flags & MAP_SHARED;
+            // Check for file backing
+            if(shared && !anon){
+                if(filewrite(curproc -> map[i].f, (char *) curproc -> map[i].addr, curproc -> map[i].length) < 0){
+                    return -1; 
+                }
+            }
+
+
+
+            for(uint j = starting_addr; j < starting_addr + length; j+=PGSIZE){
+                // Get the pte
+                pte_t *pte = walkpgdir(curproc ->pgdir, (char*)j, 1);
+                char *v;
+                
+                // Check if the pte is present in the pgtable
+                if(*pte & PTE_P){
+                    
+                    uint pa = PTE_ADDR(*pte);
+
+                    v = P2V(pa);
+                    
+                    // Free memory
+                    kfree(v);
+
+                    // Indicate the page is not present
+                    *pte = *pte & ~PTE_P;
+
+                }
+            }
+
+            curproc -> map[i].addr += length;
+            curproc -> map[i].length -= length; 
         }
     }
-
 
 
     return 0;
