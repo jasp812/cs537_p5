@@ -45,7 +45,7 @@ pgfltpfhpgflthndlrintr()
     if(!p->map[i].mapped) {
       continue;
     }
-
+    char *page = kalloc();
     // struct map_mem maps[32] = p->map;
     uint maxaddr = PGROUNDUP(((uint)p->map[i].addr) + p->map[i].length); 
 
@@ -54,7 +54,7 @@ pgfltpfhpgflthndlrintr()
     // Check whether the virtual address being accessed is within bounds
     if(fault_addr < p->map[i].addr || fault_addr >= maxaddr) {
       cprintf("Virtual address out of bounds\n");
-      cprintf("Segmentation fault. wahahaha skill issue\n");
+      cprintf("Segmentation Fault\n");
       p->killed = 1;
       return MAP_FAIL;
     }
@@ -66,7 +66,7 @@ pgfltpfhpgflthndlrintr()
     // Check that the address of the pte associated with the virtual addresss is valid
     if((pte = walkpgdir(p->pgdir, (void*)fault_addr, p->map[i].length)) == 0) {
       cprintf("PTE not valid\n");
-      cprintf("Segmentation fault. wahahaha skill issue\n");
+      cprintf("Segmentation Fault\n");
       p->killed = 1;
       return MAP_FAIL;
     }
@@ -74,7 +74,7 @@ pgfltpfhpgflthndlrintr()
     // Check physical address of the pte
     if(PTE_ADDR(&pte) == 0) {
       cprintf("Physical address of pte not valid\n");
-      cprintf("Segmentation fault. wahahaha skill issue\n");
+      cprintf("Segmentation Fault\n");
       p->killed = 1;
       return MAP_FAIL;
     }
@@ -82,61 +82,70 @@ pgfltpfhpgflthndlrintr()
     cprintf("Checking flags...\n");
 
     // check for sharing 
+    cprintf("Child shared flag: %x\n", p -> map[i].flags & MAP_SHARED);
+    cprintf("Parent shared flag: %x\n", p -> parent -> map[i].flags & MAP_SHARED);
     if(p -> map[i].flags & MAP_SHARED && p -> parent->map[i].flags & MAP_SHARED){
       uint start = p -> map[i].addr; 
       uint stop = start + p -> map[i].length; 
 
-      if(fault_addr >= start && fault_addr < stop){
+      if(fault_addr < start || fault_addr >= stop){
 
-        if(mappages(p->pgdir, (void *)fault_addr, PGSIZE, V2P(fault_addr), PTE_W | PTE_U) < 0){
+        if(mappages(p->pgdir, (void *)fault_addr, PGSIZE, V2P(page), PTE_W | PTE_U) < 0){
           panic("mappages");
         }
 
       }else{
           pte_t *pte = walkpgdir(p->parent->pgdir, (void *)fault_addr, 0);
           uint pa = PTE_ADDR(*pte);
-          if(mappages(p->pgdir, fault_addr, PGSIZE, pa, PTE_W | PTE_U) < 0){
+          if(mappages(p->pgdir, (void*)fault_addr, PGSIZE, pa, PTE_W | PTE_U) < 0){
           panic("mappages");
         }
       }
+    } else{
+
+      if(mappages(p->pgdir, (void *)fault_addr, PGSIZE, V2P(page), PTE_W | PTE_U) < 0){
+          panic("mappages");
+        }
+
     }
 
-    // ANON/FILE-BACKED MAPPING
-    
-    cprintf("Entering mapping\n");
-    int j;
-    int length = p->map[i].length;
-    uint addr = p->map[i].addr;
+    // FILE-BACKED MAPPING
+    cprintf("Checking for file backed\n");
+    if(!(p->map[i].flags & MAP_ANON)) { 
+      cprintf("FILE BACKED MAPPING\n");
+      fileread(p->map[i].f, (char*)PGROUNDDOWN(fault_addr), PGSIZE);
+      break;
+    }
 
     // For each page...
-    for(j = 0; j < length; j += PGSIZE) {
-      char *page = kalloc();
+    // for(j = 0; j < length; j += PGSIZE) {
+      
 
-      // Check return value of kalloc()
-      if (!page) {
-        return MAP_FAIL;
-      }
+    //   // Check return value of kalloc()
+    //   if (!page) {
+    //     return MAP_FAIL;
+    //   }
 
-      // Zero out page to prep for mapping
-      memset((void*)page, 0, length);
+    //   // Zero out page to prep for mapping
+    //   memset((void*)page, 0, length);
 
-      int ret = mappages(p->pgdir, (void*)(addr + j), PGSIZE, V2P(page), p->map[i].prot);
+    //   int ret = mappages(p->pgdir, (void*)(addr + j), PGSIZE, V2P(page), p->map[i].prot);
         
-      // Check if mappages failed, if it did: deallocate the kalloc'ed memory and free pointer
-      if(ret != 0) {
-        deallocuvm(p->pgdir, addr - PGSIZE, addr);
-        kfree(page);
-        return MAP_FAIL;
-      }
+    //   // Check if mappages failed, if it did: deallocate the kalloc'ed memory and free pointer
+    //   if(ret != 0) {
+    //     deallocuvm(p->pgdir, addr - PGSIZE, addr);
+    //     kfree(page);
+    //     return MAP_FAIL;
+    //   }
 
-      // FILE-BACKED MAPPING
-      if(!(p->map[i].flags & MAP_ANON)) { 
-        cprintf("FILE BACKED MAPPING\n");
-        fileread(p->map[i].f, (char*)PGROUNDDOWN(fault_addr), PGSIZE);
-        break;
-      }
+    //   // FILE-BACKED MAPPING
+    //   if(!(p->map[i].flags & MAP_ANON)) { 
+    //     cprintf("FILE BACKED MAPPING\n");
+    //     fileread(p->map[i].f, (char*)PGROUNDDOWN(fault_addr), PGSIZE);
+    //     break;
+    //   }
     
-    }
+    // }
   }
 
   return MAP_SUCCESS;
