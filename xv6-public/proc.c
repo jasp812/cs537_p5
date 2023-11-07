@@ -206,6 +206,8 @@ fork(void)
     memmove(&(np[i].map), &(curproc[i].map), sizeof(curproc[i].map));
   }
 
+  
+
   // Clear %eax so that fork returns 0 in the child.
   np->tf->eax = 0;
 

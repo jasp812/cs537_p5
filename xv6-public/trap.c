@@ -33,6 +33,24 @@ idtinit(void)
   lidt(idt, sizeof(idt));
 }
 
+int
+check_guard_page(struct map_mem *m, uint fault_addr)
+{
+  struct proc *curproc = myproc();
+  int i;
+
+  for(i = 0; i < MAX_MAPS; i++) {
+    struct map_mem *guard = &curproc->map[i];
+    if(!guard->mapped || m == guard)
+      continue;
+    if(fault_addr >= guard->addr && fault_addr < guard->addr + guard->length)
+      return -1;
+    if(fault_addr + PGSIZE >= guard->addr && fault_addr < guard->addr + guard->length)
+      return -1;
+  }
+  return 0;
+}
+
 void*
 pgfltpfhpgflthndlrintr() 
 {
@@ -49,14 +67,22 @@ pgfltpfhpgflthndlrintr()
     // struct map_mem maps[32] = p->map;
     uint maxaddr = PGROUNDUP(((uint)p->map[i].addr) + p->map[i].length); 
 
-    cprintf("fault_addr: %x, process mapp addr: %x, maxaddr: %x\n", fault_addr, p->map[i].addr, maxaddr);
+    cprintf("fault_addr: %p, process mapp addr: %p, maxaddr: %p\n", fault_addr, p->map[i].addr, maxaddr);
 
     // Check whether the virtual address being accessed is within bounds
     if(fault_addr < p->map[i].addr || fault_addr >= maxaddr) {
-      cprintf("Virtual address out of bounds\n");
-      cprintf("Segmentation Fault\n");
-      p->killed = 1;
-      return MAP_FAIL;
+      if(p->map[i].flags & MAP_GROWSUP) {
+        if(check_guard_page(&p->map[i], fault_addr) < 0) {
+          cprintf("Segmentation Fault\n");
+          p->killed = 1;
+          return MAP_FAIL;
+        } 
+      } else {
+        cprintf("Virtual address out of bounds\n");
+        cprintf("Segmentation Fault\n");
+        p->killed = 1;
+        return MAP_FAIL;
+      }
     }
 
     pde_t *pte;
@@ -90,11 +116,14 @@ pgfltpfhpgflthndlrintr()
 
       if(fault_addr < start || fault_addr >= stop){
 
+        cprintf("1\n");
+
         if(mappages(p->pgdir, (void *)fault_addr, PGSIZE, V2P(page), PTE_W | PTE_U) < 0){
           panic("mappages");
         }
 
-      }else{
+      }else {
+          cprintf("2\n");
           pte_t *pte = walkpgdir(p->parent->pgdir, (void *)fault_addr, 0);
           uint pa = PTE_ADDR(*pte);
           if(mappages(p->pgdir, (void*)fault_addr, PGSIZE, pa, PTE_W | PTE_U) < 0){
@@ -102,7 +131,11 @@ pgfltpfhpgflthndlrintr()
         }
       }
     } else{
-
+      cprintf("3\n");
+      pte_t *pte = walkpgdir(p->parent->pgdir, (void *)fault_addr, 0);
+      uint pa = PTE_ADDR(*pte);
+      char *parent_pg = (char *)P2V(pa);
+      memmove(page, parent_pg, PGSIZE);
       if(mappages(p->pgdir, (void *)fault_addr, PGSIZE, V2P(page), PTE_W | PTE_U) < 0){
           panic("mappages");
         }
@@ -116,6 +149,8 @@ pgfltpfhpgflthndlrintr()
       fileread(p->map[i].f, (char*)PGROUNDDOWN(fault_addr), PGSIZE);
       break;
     }
+
+    
 
     // For each page...
     // for(j = 0; j < length; j += PGSIZE) {

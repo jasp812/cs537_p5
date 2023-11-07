@@ -65,14 +65,15 @@ void *mmap(void *addr, size_t length, int prot, int flags, int fd, off_t offset)
         uint end = PGROUNDUP(start + length);
         int free_found = 0;
         while(end < KERNBASE) {
+            free_found = 1;
             for(; n < MAX_MAPS; n++) {
                 struct map_mem *m = &curproc->map[n];
 
                 if(!m->mapped)
                     continue;
 
-                if(!(start >= m->addr && end <= m->addr+length)) {
-                    free_found = 1;
+                if(start >= m->addr && end <= m->addr+length) {
+                    free_found = 0;
                     break;
                 }
             }
