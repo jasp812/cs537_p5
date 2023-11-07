@@ -120,9 +120,7 @@ pgfltpfhpgflthndlrintr()
     }
   }
 
-  return MAP_SUCCESS;
 }
-
 //PAGEBREAK: 41
 void
 trap(struct trapframe *tf)

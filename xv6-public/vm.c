@@ -249,6 +249,27 @@ allocuvm(pde_t *pgdir, uint oldsz, uint newsz)
   return newsz;
 }
 
+int shared(char *virt_addr){
+  struct proc *curproc = myproc();
+  for (int i = 0; i < 32; i++){
+    
+    if(curproc -> map[i].flags & MAP_SHARED){
+        uint stop = curproc -> map[i].addr + curproc -> map[i].length;
+        for(uint start = curproc -> map[i].addr; start < stop; start +=PGSIZE){
+            pte_t *pte = walkpgdir(curproc -> pgdir, (void *) start, 0);
+            uint pa = PTE_ADDR(pte);
+            if(pa == (uint) virt_addr){
+              return 1;
+            }
+        }
+
+    }
+  
+  }
+
+  return 0;
+}
+
 // Deallocate user pages to bring the process size from oldsz to
 // newsz.  oldsz and newsz need not be page-aligned, nor does newsz
 // need to be less than oldsz.  oldsz can be larger than the actual
@@ -272,7 +293,8 @@ deallocuvm(pde_t *pgdir, uint oldsz, uint newsz)
       if(pa == 0)
         panic("kfree");
       char *v = P2V(pa);
-      kfree(v);
+      if(!shared(v))
+        kfree(v);
       *pte = 0;
     }
   }
