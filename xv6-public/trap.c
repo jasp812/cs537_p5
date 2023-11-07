@@ -81,6 +81,26 @@ pgfltpfhpgflthndlrintr()
 
     cprintf("Checking flags...\n");
 
+    // check for sharing 
+    if(p -> map[i].flags & MAP_SHARED && p -> parent->map[i].flags & MAP_SHARED){
+      uint start = p -> map[i].addr; 
+      uint stop = start + p -> map[i].length; 
+
+      if(fault_addr >= start && fault_addr < stop){
+
+        if(mappages(p->pgdir, (void *)fault_addr, PGSIZE, V2P(fault_addr), PTE_W | PTE_U) < 0){
+          panic("mappages");
+        }
+
+      }else{
+          pte_t *pte = walkpgdir(p->parent->pgdir, (void *)fault_addr, 0);
+          uint pa = PTE_ADDR(*pte);
+          if(mappages(p->pgdir, fault_addr, PGSIZE, pa, PTE_W | PTE_U) < 0){
+          panic("mappages");
+        }
+      }
+    }
+
     // ANON/FILE-BACKED MAPPING
     
     cprintf("Entering mapping\n");
