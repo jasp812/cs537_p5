@@ -20,6 +20,7 @@ void *mmap(void *addr, size_t length, int prot, int flags, int fd, off_t offset)
     
 
     struct proc *curproc = myproc();
+    uint retaddr = 0;
     
     // int private_bit = flags & MAP_PRIVATE;
     // int shared_bit = flags & MAP_SHARED;
@@ -53,6 +54,34 @@ void *mmap(void *addr, size_t length, int prot, int flags, int fd, off_t offset)
         // populate struct to reserve memory
         // can also think of this as the 'lazy' part of lazy allocation
         mapped.addr = (uint)addr;
+        retaddr = (uint)addr;
+    } else {
+        int n = 0;
+        uint start = MMAPBASE;
+        uint end = PGROUNDUP(start + length);
+        int free_found = 0;
+        while(end < KERNBASE) {
+            for(; n < MAX_MAPS; n++) {
+                struct map_mem *m = &curproc->map[n];
+
+                if(!m->mapped)
+                    continue;
+
+                if(!(start >= m->addr && end <= m->addr+length)) {
+                    free_found = 1;
+                    break;
+                }
+            }
+
+            if(free_found)
+                break;
+            start += PGSIZE;
+            end += PGSIZE;
+        }
+        mapped.addr = start;
+        retaddr = start;
+        
+    }
         mapped.length = length;
         mapped.offset = offset;
         mapped.prot = prot;
@@ -93,9 +122,9 @@ void *mmap(void *addr, size_t length, int prot, int flags, int fd, off_t offset)
        cprintf("Array updated\n");
 
 
-    }
+    
     cprintf("Returning %x\n", addr);
-    return addr;
+    return (void*)retaddr;
 
 }
 int munmap(void* addr, size_t length) {

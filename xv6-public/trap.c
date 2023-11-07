@@ -77,42 +77,47 @@ pgfltpfhpgflthndlrintr()
 
     cprintf("Checking flags...\n");
 
-    // ANON MAPPING
-    if(p->map[i].flags & MAP_ANONYMOUS) {
-      cprintf("Entering ANON MAPPING\n");
-      int j;
-      int length = p->map[i].length;
-      uint addr = p->map[i].addr;
+    // ANON/FILE-BACKED MAPPING
+    
+    cprintf("Entering mapping\n");
+    int j;
+    int length = p->map[i].length;
+    uint addr = p->map[i].addr;
 
-      // For each page...
-      for(j = 0; j < length; j += PGSIZE) {
-        char *page = kalloc();
+    // For each page...
+    for(j = 0; j < length; j += PGSIZE) {
+      char *page = kalloc();
 
-        // Check return value of kalloc()
-        if (!page) {
-          return MAP_FAIL;
-        }
+      // Check return value of kalloc()
+      if (!page) {
+        return MAP_FAIL;
+      }
 
-        // Zero out page to prep for mapping
-        memset((void*)page, 0, length);
+      // Zero out page to prep for mapping
+      memset((void*)page, 0, length);
 
-        int ret = mappages(p->pgdir, (void*)(fault_addr + j), PGSIZE, V2P(page), p->map[i].prot);
+      int ret = mappages(p->pgdir, (void*)(fault_addr + j), PGSIZE, V2P(page), p->map[i].prot);
         
-        // Check if mappages failed, if it did: deallocate the kalloc'ed memory and free pointer
-        if(ret != 0) {
-          deallocuvm(p->pgdir, addr - PGSIZE, addr);
-          kfree(page);
-          return MAP_FAIL;
-        }
-      }     
-    } else { // FILE-BACKED MAPPING
-  
-    }
+      // Check if mappages failed, if it did: deallocate the kalloc'ed memory and free pointer
+      if(ret != 0) {
+        deallocuvm(p->pgdir, addr - PGSIZE, addr);
+        kfree(page);
+        return MAP_FAIL;
+      }
+
+      // FILE-BACKED MAPPING
+      if(!(p->map[i].flags & MAP_ANON)) { 
+        cprintf("FILE BACKED MAPPING\n");
+        fileread(p->map[i].f, (char*)(fault_addr + j), PGSIZE);
+      }
+           
+    
 
 
 
 
     
+    }
   }
 
   return MAP_SUCCESS;
