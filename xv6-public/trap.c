@@ -33,6 +33,24 @@ idtinit(void)
   lidt(idt, sizeof(idt));
 }
 
+int
+check_guard_page(struct map_mem *m, uint fault_addr)
+{
+  struct proc *curproc = myproc();
+  int i;
+
+  for(i = 0; i < MAX_MAPS; i++) {
+    struct map_mem *guard = &curproc->map[i];
+    if(!guard->mapped || m == guard)
+      continue;
+    if(fault_addr >= guard->addr && fault_addr < guard->addr + guard->length)
+      return -1;
+    if(fault_addr + PGSIZE >= guard->addr && fault_addr < guard->addr + guard->length)
+      return -1;
+  }
+  return 0;
+}
+
 void*
 pgfltpfhpgflthndlrintr() 
 {
@@ -40,19 +58,31 @@ pgfltpfhpgflthndlrintr()
   uint fault_addr = rcr2();
   
   cprintf("Entering for loop\n");
-  for(int i = 0; i < p->num_mappings; i++) {
+  for(int i = 0; i < 32; i++) {
 
+    if(!p->map[i].mapped) {
+      continue;
+    }
+    char *page = kalloc();
     // struct map_mem maps[32] = p->map;
     uint maxaddr = PGROUNDUP(((uint)p->map[i].addr) + p->map[i].length); 
 
-    cprintf("fault_addr: %x, process mapp addr: %x, maxaddr: %x\n", fault_addr, p->map[i].addr, maxaddr);
+    cprintf("fault_addr: %p, process mapp addr: %p, maxaddr: %p\n", fault_addr, p->map[i].addr, maxaddr);
 
     // Check whether the virtual address being accessed is within bounds
-    if(fault_addr < p->map[i].addr || fault_addr > maxaddr) {
-      cprintf("Virtual address out of bounds\n");
-      cprintf("Segmentation fault. wahahaha skill issue\n");
-      p->killed = 1;
-      return MAP_FAIL;
+    if(fault_addr < p->map[i].addr || fault_addr >= maxaddr) {
+      if(p->map[i].flags & MAP_GROWSUP) {
+        if(check_guard_page(&p->map[i], fault_addr) < 0) {
+          cprintf("Segmentation Fault\n");
+          p->killed = 1;
+          return MAP_FAIL;
+        } 
+      } else {
+        cprintf("Virtual address out of bounds\n");
+        cprintf("Segmentation Fault\n");
+        p->killed = 1;
+        return MAP_FAIL;
+      }
     }
 
     pde_t *pte;
@@ -62,7 +92,7 @@ pgfltpfhpgflthndlrintr()
     // Check that the address of the pte associated with the virtual addresss is valid
     if((pte = walkpgdir(p->pgdir, (void*)fault_addr, p->map[i].length)) == 0) {
       cprintf("PTE not valid\n");
-      cprintf("Segmentation fault. wahahaha skill issue\n");
+      cprintf("Segmentation Fault\n");
       p->killed = 1;
       return MAP_FAIL;
     }
@@ -70,7 +100,7 @@ pgfltpfhpgflthndlrintr()
     // Check physical address of the pte
     if(PTE_ADDR(&pte) == 0) {
       cprintf("Physical address of pte not valid\n");
-      cprintf("Segmentation fault. wahahaha skill issue\n");
+      cprintf("Segmentation Fault\n");
       p->killed = 1;
       return MAP_FAIL;
     }
@@ -78,52 +108,37 @@ pgfltpfhpgflthndlrintr()
     cprintf("Checking flags...\n");
 
     // check for sharing 
+    cprintf("Child shared flag: %x\n", p -> map[i].flags & MAP_SHARED);
+    cprintf("Parent shared flag: %x\n", p -> parent -> map[i].flags & MAP_SHARED);
     if(p -> map[i].flags & MAP_SHARED && p -> parent->map[i].flags & MAP_SHARED){
       uint start = p -> map[i].addr; 
       uint stop = start + p -> map[i].length; 
 
-      if(fault_addr < start && fault_addr >= stop){
+      if(fault_addr >= start && fault_addr < stop){
 
-        if(mappages(p->pgdir, (void *)fault_addr, PGSIZE, V2P(fault_addr), PTE_W | PTE_U) < 0){
+        if(mappages(p->pgdir, (void *)fault_addr, PGSIZE, V2P(page), PTE_W | PTE_U) < 0){
           panic("mappages");
         }
 
-      }else{
+      }else {
+          cprintf("2\n");
           pte_t *pte = walkpgdir(p->parent->pgdir, (void *)fault_addr, 0);
           uint pa = PTE_ADDR(*pte);
-          if(mappages(p->pgdir, fault_addr, PGSIZE, pa, PTE_W | PTE_U) < 0){
+          if(mappages(p->pgdir, (void*)fault_addr, PGSIZE, pa, PTE_W | PTE_U) < 0){
           panic("mappages");
         }
       }
+    } else{
+      cprintf("3\n");
+      pte_t *pte = walkpgdir(p->parent->pgdir, (void *)fault_addr, 0);
+      uint pa = PTE_ADDR(*pte);
+      char *parent_pg = (char *)P2V(pa);
+      memmove(page, parent_pg, PGSIZE);
+      if(mappages(p->pgdir, (void *)fault_addr, PGSIZE, V2P(page), PTE_W | PTE_U) < 0){
+          panic("mappages");
+        }
+
     }
-
-    // ANON/FILE-BACKED MAPPING
-    
-    cprintf("Entering mapping\n");
-    int j;
-    int length = p->map[i].length;
-    uint addr = p->map[i].addr;
-
-    // For each page...
-    for(j = 0; j < length; j += PGSIZE) {
-      char *page = kalloc();
-
-      // Check return value of kalloc()
-      if (!page) {
-        return MAP_FAIL;
-      }
-
-      // Zero out page to prep for mapping
-      memset((void*)page, 0, length);
-
-      int ret = mappages(p->pgdir, (void*)(fault_addr + j), PGSIZE, V2P(page), p->map[i].prot);
-        
-      // Check if mappages failed, if it did: deallocate the kalloc'ed memory and free pointer
-      if(ret != 0) {
-        deallocuvm(p->pgdir, addr - PGSIZE, addr);
-        kfree(page);
-        return MAP_FAIL;
-      }
 
       // FILE-BACKED MAPPING
       if(!(p->map[i].flags & MAP_ANON)) { 
@@ -132,6 +147,9 @@ pgfltpfhpgflthndlrintr()
       }
            
     
+
+
+
 
     
     }

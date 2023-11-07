@@ -7,6 +7,10 @@
 #include "mmap.h"
 #include "proc.h"
 #include "elf.h"
+#include "spinlock.h"
+#include "sleeplock.h"
+#include "fs.h"
+#include "file.h"
 
 static struct map_mem mapped;
 
@@ -61,14 +65,15 @@ void *mmap(void *addr, size_t length, int prot, int flags, int fd, off_t offset)
         uint end = PGROUNDUP(start + length);
         int free_found = 0;
         while(end < KERNBASE) {
+            free_found = 1;
             for(; n < MAX_MAPS; n++) {
                 struct map_mem *m = &curproc->map[n];
 
                 if(!m->mapped)
                     continue;
 
-                if(!(start >= m->addr && end <= m->addr+length)) {
-                    free_found = 1;
+                if(start >= m->addr && end <= m->addr+length) {
+                    free_found = 0;
                     break;
                 }
             }
@@ -123,14 +128,15 @@ void *mmap(void *addr, size_t length, int prot, int flags, int fd, off_t offset)
 
 
     
-    cprintf("Returning %x\n", addr);
+    cprintf("Returning %x\n", retaddr);
     return (void*)retaddr;
 
 }
 int munmap(void* addr, size_t length) {
     struct proc *curproc = myproc();
 
-    if(!((uint)addr % PGSIZE)){
+    if(((uint)addr % PGSIZE)){
+        cprintf("Address is not page-aligned\n");
         return -1;
     }
 
@@ -143,7 +149,9 @@ int munmap(void* addr, size_t length) {
             uint shared = curproc->map[i].flags & MAP_SHARED;
             // Check for file backing
             if(shared && !anon){
-                if(filewrite(curproc -> map[i].f, (char *) curproc -> map[i].addr, curproc -> map[i].length) < 0){
+                curproc->map[i].f->off = 0;
+                if(filewrite(curproc -> map[i].f, (char *) starting_addr, length) < 0){
+                    cprintf("filewrite failed\n");
                     return -1; 
                 }
             }

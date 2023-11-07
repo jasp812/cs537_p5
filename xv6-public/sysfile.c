@@ -500,5 +500,21 @@ sys_mmap(void)
 int
 sys_munmap(void)
 {
-  return 0;
+  cprintf("System munmap called\n");
+  int addr;
+  size_t length;
+
+  if(argint(0, &addr) < 0) {
+    cprintf("Failed to get addr arg\n");
+    return -1;
+  }
+
+  if(argint(1, (int*)&length) < 0) {
+    cprintf("Failed to get length arg\n");
+    return -1;
+  }
+
+  cprintf("Going into munmap\n");
+  cprintf("Addr being passed in: %x\n", addr);
+  return munmap((void*)addr, length);
 }
