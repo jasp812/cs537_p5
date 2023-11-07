@@ -40,7 +40,11 @@ pgfltpfhpgflthndlrintr()
   uint fault_addr = rcr2();
   
   cprintf("Entering for loop\n");
-  for(int i = 0; i < p->num_mappings; i++) {
+  for(int i = 0; i < 32; i++) {
+
+    if(!p->map[i].mapped) {
+      continue;
+    }
 
     // struct map_mem maps[32] = p->map;
     uint maxaddr = PGROUNDUP(((uint)p->map[i].addr) + p->map[i].length); 
@@ -48,7 +52,7 @@ pgfltpfhpgflthndlrintr()
     cprintf("fault_addr: %x, process mapp addr: %x, maxaddr: %x\n", fault_addr, p->map[i].addr, maxaddr);
 
     // Check whether the virtual address being accessed is within bounds
-    if(fault_addr < p->map[i].addr || fault_addr > maxaddr) {
+    if(fault_addr < p->map[i].addr || fault_addr >= maxaddr) {
       cprintf("Virtual address out of bounds\n");
       cprintf("Segmentation fault. wahahaha skill issue\n");
       p->killed = 1;
@@ -96,7 +100,7 @@ pgfltpfhpgflthndlrintr()
       // Zero out page to prep for mapping
       memset((void*)page, 0, length);
 
-      int ret = mappages(p->pgdir, (void*)(fault_addr + j), PGSIZE, V2P(page), p->map[i].prot);
+      int ret = mappages(p->pgdir, (void*)(addr + j), PGSIZE, V2P(page), p->map[i].prot);
         
       // Check if mappages failed, if it did: deallocate the kalloc'ed memory and free pointer
       if(ret != 0) {
@@ -108,17 +112,14 @@ pgfltpfhpgflthndlrintr()
       // FILE-BACKED MAPPING
       if(!(p->map[i].flags & MAP_ANON)) { 
         cprintf("FILE BACKED MAPPING\n");
-        fileread(p->map[i].f, (char*)(fault_addr + j), PGSIZE);
+        fileread(p->map[i].f, (char*)PGROUNDDOWN(fault_addr), PGSIZE);
+        break;
       }
-           
-    
-
-
-
-
     
     }
   }
+
+  return MAP_SUCCESS;
 
 }
 //PAGEBREAK: 41
