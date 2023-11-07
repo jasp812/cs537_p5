@@ -202,6 +202,10 @@ fork(void)
   np->parent = curproc;
   *np->tf = *curproc->tf;
 
+  for(int i = 0; i < 32; i++){
+    memmove(&(np[i].map), &(curproc[i].map), sizeof(curproc[i].map));
+  }
+
   // Clear %eax so that fork returns 0 in the child.
   np->tf->eax = 0;
 
