@@ -3,11 +3,11 @@
 #include "param.h"
 #include "memlayout.h"
 #include "mmu.h"
+#include "mmap.h"
 #include "proc.h"
 #include "x86.h"
 #include "traps.h"
 #include "spinlock.h"
-#include "mmap.h"
 
 // Interrupt descriptor table (shared by all CPUs).
 struct gatedesc idt[256];
@@ -33,20 +33,23 @@ idtinit(void)
   lidt(idt, sizeof(idt));
 }
 
-void
+void*
 pgfltpfhpgflthndlrintr() 
 {
   struct proc *p = myproc();
   uint fault_addr = rcr2();
   
-
+  cprintf("Entering for loop\n");
   for(int i = 0; i < p->num_mappings; i++) {
 
-    struct map_mem *maps[32] = p->map;
-    uint maxaddr = PGROUNDUP(((uint)maps[i]->addr) + maps[i]->length); 
+    // struct map_mem maps[32] = p->map;
+    uint maxaddr = PGROUNDUP(((uint)p->map[i].addr) + p->map[i].length); 
+
+    cprintf("fault_addr: %x, process mapp addr: %x, maxaddr: %x\n", fault_addr, p->map[i].addr, maxaddr);
 
     // Check whether the virtual address being accessed is within bounds
-    if(fault_addr < maps[i]->addr || fault_addr > maxaddr) {
+    if(fault_addr < p->map[i].addr || fault_addr > maxaddr) {
+      cprintf("Virtual address out of bounds\n");
       cprintf("Segmentation fault. wahahaha skill issue\n");
       p->killed = 1;
       return MAP_FAIL;
@@ -57,7 +60,8 @@ pgfltpfhpgflthndlrintr()
     // pte = walkpgdir(p->pgdir, fault_addr, maps[i]->length);
 
     // Check that the address of the pte associated with the virtual addresss is valid
-    if(pte = walkpgdir(p->pgdir, fault_addr, maps[i]->length) == 0) {
+    if((pte = walkpgdir(p->pgdir, (void*)fault_addr, p->map[i].length)) == 0) {
+      cprintf("PTE not valid\n");
       cprintf("Segmentation fault. wahahaha skill issue\n");
       p->killed = 1;
       return MAP_FAIL;
@@ -65,19 +69,23 @@ pgfltpfhpgflthndlrintr()
 
     // Check physical address of the pte
     if(PTE_ADDR(&pte) == 0) {
+      cprintf("Physical address of pte not valid\n");
       cprintf("Segmentation fault. wahahaha skill issue\n");
       p->killed = 1;
       return MAP_FAIL;
     }
 
+    cprintf("Checking flags...\n");
+
     // ANON MAPPING
-    if(maps[i]->flags & MAP_ANONYMOUS) {
-      int i;
-      int length = maps[i]->length;
-      uint addr = maps[i]->addr;
+    if(p->map[i].flags & MAP_ANONYMOUS) {
+      cprintf("Entering ANON MAPPING\n");
+      int j;
+      int length = p->map[i].length;
+      uint addr = p->map[i].addr;
 
       // For each page...
-      for(i = 0; i < length; i += PGSIZE) {
+      for(j = 0; j < length; j += PGSIZE) {
         char *page = kalloc();
 
         // Check return value of kalloc()
@@ -88,7 +96,7 @@ pgfltpfhpgflthndlrintr()
         // Zero out page to prep for mapping
         memset((void*)page, 0, length);
 
-        int ret = mappages(p->pgdir, (void*)addr, PGSIZE, V2P(page), maps[i]->prot);
+        int ret = mappages(p->pgdir, (void*)(fault_addr + j), PGSIZE, V2P(page), p->map[i].prot);
         
         // Check if mappages failed, if it did: deallocate the kalloc'ed memory and free pointer
         if(ret != 0) {
@@ -100,11 +108,10 @@ pgfltpfhpgflthndlrintr()
     } else { // FILE-BACKED MAPPING
 
     }  
-  
-  }
 
 }
 
+}
 //PAGEBREAK: 41
 void
 trap(struct trapframe *tf)
@@ -151,6 +158,8 @@ trap(struct trapframe *tf)
     lapiceoi();
     break;
   case T_PGFLT:
+    pgfltpfhpgflthndlrintr();
+    break;
 
 
   //PAGEBREAK: 13

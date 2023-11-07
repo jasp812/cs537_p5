@@ -9,13 +9,13 @@
 #include "param.h"
 #include "stat.h"
 #include "mmu.h"
+#include "mmap.h"
 #include "proc.h"
 #include "fs.h"
 #include "spinlock.h"
 #include "sleeplock.h"
 #include "file.h"
 #include "fcntl.h"
-#include "mmap.h"
 
 // Fetch the nth word-sized system call argument as a file descriptor
 // and return both the descriptor and the corresponding struct file.
@@ -447,30 +447,51 @@ sys_pipe(void)
 int
 sys_mmap(void)
 {
-  void *addr;
+  cprintf("System mmap called\n");
+  int addr;
   size_t length;
   int prot;
   int flags;
   int fd;
   off_t offset;
 
-  if(argptr(0, &addr, sizeof(addr)) < 0)
+  if(argint(0, &addr) < 0) {
+    cprintf("Failed to get addr arg\n");
     return -1;
+  }
+
+  if(argint(1, (int*)&length) < 0) {
+    cprintf("Failed to get length arg\n");
+    return -1;
+  }
+
+  if(argint(2, (int*)&prot) < 0) {
+    cprintf("Failed to get prot arg\n");
+    return -1;
+  }
+
+  if(argint(3, (int*)&flags) < 0) {
+    cprintf("Failed to get flag arg\n");
+    return -1;
+  }
+
+  if(argint(4, (int*)&fd) < 0) {
+    cprintf("Failed to get fd arg\n");
+    return -1;
+  }
+
+  if(argint(5, (int*)&offset) < 0) {
+    cprintf("Failed to get offset arg\n");
+    return -1;
+  }
+
+  cprintf("Calling mmap\n");
+  return (int)mmap((void*)addr, length, prot, flags, fd, offset);
   
-  if(argint(1, &length) < 0)
-    return -1;
+}
 
-  if(argint(2, &prot) < 0)
-    return -1;
-
-  if(argint(3, &flags) < 0)
-    return -1;
-
-  if(argint(4, &fd) < 0)
-    return -1;
-
-  if(argint(5, &offset) < 0)
-    return -1;
-
-  mmap(addr, length, prot, flags, fd, offset);
+int
+sys_munmap(void)
+{
+  return 0;
 }
