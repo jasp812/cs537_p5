@@ -12,8 +12,10 @@
 #include "file.h"
 #include "memlayout.h"
 #include "mmu.h"
+#include "mmap.h"
 #include "proc.h"
 #include "x86.h"
+
 
 static void consputc(int);
 

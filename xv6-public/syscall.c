@@ -3,6 +3,7 @@
 #include "param.h"
 #include "memlayout.h"
 #include "mmu.h"
+#include "mmap.h"
 #include "proc.h"
 #include "x86.h"
 #include "syscall.h"
@@ -103,6 +104,8 @@ extern int sys_unlink(void);
 extern int sys_wait(void);
 extern int sys_write(void);
 extern int sys_uptime(void);
+extern int sys_mmap(void);
+extern int sys_munmap(void);
 
 static int (*syscalls[])(void) = {
 [SYS_fork]    sys_fork,
