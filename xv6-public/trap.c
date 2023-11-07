@@ -143,7 +143,7 @@ pgfltpfhpgflthndlrintr()
       // FILE-BACKED MAPPING
       if(!(p->map[i].flags & MAP_ANON)) { 
         cprintf("FILE BACKED MAPPING\n");
-        fileread(p->map[i].f, (char*)(fault_addr + j), PGSIZE);
+        fileread(p->map[i].f, (char*)(fault_addr), PGSIZE);
       }
            
     
